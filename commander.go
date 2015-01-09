@@ -1,5 +1,9 @@
 package commander
 
+import (
+	"fmt"
+)
+
 type Cmd struct {
 	Name string
 
@@ -14,7 +18,7 @@ type Context interface {
 	Command() *Cmd
 	Data() interface{}
 	Run() error
-	Param(*Param) ParamValue
+	Param(*Param) (ParamValue, bool)
 }
 
 func (c *Cmd) AddSubCommand(sub *Cmd) {
@@ -26,6 +30,13 @@ func (c *Cmd) AddFlag(short, long string) {
 }
 
 func (c *Cmd) Param(param *Param) *Cmd {
+	i := len(c.params) - 1
+	if i >= 0 && param.options&paramRequired == paramRequired {
+		p := c.params[i]
+		if p.options&paramRequired == 0 {
+			panic(fmt.Errorf("Cannot add required param %s after optional param %s on command %s", param.Name, p.Name, c.Name))
+		}
+	}
 	c.params = append(c.params, param)
 	return c
 }

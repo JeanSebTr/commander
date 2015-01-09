@@ -1,5 +1,9 @@
 package commander
 
+import (
+	"fmt"
+)
+
 type Param struct {
 	Name    string
 	options paramOptions
@@ -7,11 +11,14 @@ type Param struct {
 }
 
 type ParamValue struct {
-	value string
+	value interface{}
 }
 
 func (p ParamValue) String() string {
-	return p.value
+	if str, ok := p.value.(string); ok {
+		return str
+	}
+	return fmt.Sprint(p.value)
 }
 
 type paramOptions uint8
@@ -22,11 +29,11 @@ const (
 )
 
 func (p *Param) Required() *Param {
-	p.options &= paramRequired
+	p.options |= paramRequired
 	return p
 }
 
 func (p *Param) MultiWords() *Param {
-	p.options &= paramEllipsis
+	p.options |= paramEllipsis
 	return p
 }

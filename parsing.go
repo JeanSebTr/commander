@@ -28,45 +28,50 @@ func (c *context) Run() (err error) {
 	return err
 }
 
-func (c *context) Param(p *Param) ParamValue {
-	return c.params[p]
+func (c *context) Param(p *Param) (v ParamValue, ok bool) {
+	v, ok = c.params[p]
+	return
 }
 
 const trimChars = " \t\r\n"
 
-func (c *Cmd) ParseStr(line string, data interface{}) (Context, error) {
+func (c *Cmd) ParseStr(line string, data interface{}) (Ctx Context, err error) {
 	ctx := &context{
 		data:   data,
 		params: make(map[*Param]ParamValue),
 	}
 	line = strings.Trim(line, trimChars)
 
-	if err := c.parseStr(line, ctx); err != nil {
-		return nil, err
-	}
-	return ctx, nil
+	err = c.parseStr(line, ctx)
+	return ctx, err
 }
 
 func (c *Cmd) parseStr(line string, ctx *context) error {
 	ctx.cmd = c
-	l := len(line)
-	if l == 0 {
-		return nil
-	}
 	for i, last, l, pLen := 0, 0, len(line), len(ctx.params); i <= l; i++ {
 		if i < l && line[i] != ' ' {
 			continue
 		}
-		part := line[last:i]
-		if subCmd, found := c.GetCommand(part); found {
-			fmt.Printf("Cmd: %s\n", subCmd.Name)
-			return subCmd.parseStr(strings.TrimLeft(line[i:], trimChars), ctx)
+		part := strings.Trim(line[last:i], trimChars)
+		if part == "" {
+			continue
+		}
+		if pLen == 0 {
+			// check sub command only if no param yet
+			if subCmd, found := c.GetCommand(part); found {
+				return subCmd.parseStr(strings.TrimLeft(line[i:], trimChars), ctx)
+			}
 		}
 		// TODO : check flags before parameters
 		if pLen < len(c.params) {
 			param := c.params[pLen]
 			ctx.params[param] = ParamValue{part}
 			pLen++
+		}
+	}
+	for _, p := range c.params {
+		if _, ok := ctx.Param(p); p.options&paramRequired == paramRequired && !ok {
+			return MissingParamError{p, c}
 		}
 	}
 	return nil
